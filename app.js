@@ -48,39 +48,54 @@ function size(){
 }
 let resizeFrame=0;addEventListener('resize',()=>{if(!resizeFrame)resizeFrame=requestAnimationFrame(()=>{resizeFrame=0;size()})},{passive:true});size();
 
-// Fine, incomplete ellipses: light moving across an imagined celestial map.
+// Line convection runs at exactly 105% of the previous timeline.
+const LINE_SPEED=1.05;
+function projectLinePoint(x,y,z,phase){
+ const yaw=Math.sin(phase*.43)*.16,pitch=Math.cos(phase*.37)*.12;
+ const dx=x-W*.5,dy=y-H*.5,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+ const xx=dx*cy+z*sy,zz=-dx*sy+z*cy,yy=dy*cp-zz*sp,depth=dy*sp+zz*cp;
+ const perspective=Math.max(W,H)*1.8,scale=perspective/(perspective+depth);
+ return {x:W*.5+xx*scale,y:H*.5+yy*scale,scale};
+}
+function orbitPoint(i,theta,clock){
+ const unit=Math.max(W,H),phase=clock*.000004;
+ const cx=W*(.46+i*.035)+px*(9+i*2),cy=H*(.48+Math.sin(i*1.7+clock*.000003)*.12)+py*10;
+ const rx=unit*(.31+i*.065),ry=unit*(.12+i*.027),angle=-.7+i*.31+Math.sin(phase)*.07;
+ const x=rx*Math.cos(theta),y=ry*Math.sin(theta),z=Math.sin(theta+phase+i)*unit*.09+Math.sin(phase*.65+i)*unit*.045;
+ return projectLinePoint(cx+x*Math.cos(angle)-y*Math.sin(angle),cy+x*Math.sin(angle)+y*Math.cos(angle),z,phase+i*.4);
+}
 function drawOrbits(ctx,withPoints=false){
- const scale=Math.max(W,H),shift=Math.sin(t*.000004)*.07;
+ const clock=t*LINE_SPEED;
  ctx.save();
  for(let i=0;i<3;i++){
-  const cx=W*(.46+i*.035)+px*(9+i*2),cy=H*(.48+Math.sin(i*1.7+t*.000003)*.12)+py*10;
-  const rx=scale*(.31+i*.065),ry=scale*(.12+i*.027),angle=-.7+i*.31+shift;
-  if(!withPoints){const gradient=ctx.createLinearGradient(cx-rx,cy-ry,cx+rx,cy+ry);
-  gradient.addColorStop(0,'rgba(182,156,109,0)');gradient.addColorStop(.32,'rgba(196,169,114,.19)');gradient.addColorStop(.65,'rgba(196,169,114,.065)');gradient.addColorStop(1,'rgba(182,156,109,0)');
-  ctx.strokeStyle=gradient;ctx.lineWidth=.65;ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,angle,.2,Math.PI*1.85);ctx.stroke();}
-  if(!withPoints)continue;
-  const phase=t*.000075+i*1.9,x=rx*Math.cos(phase),y=ry*Math.sin(phase),lx=cx+x*Math.cos(angle)-y*Math.sin(angle),ly=cy+x*Math.sin(angle)+y*Math.cos(angle);
-  const tangent=Math.atan2(ry*Math.cos(phase),-rx*Math.sin(phase))+angle;
-  ctx.save();ctx.translate(lx,ly);ctx.rotate(tangent);ctx.drawImage(pointSprite,-18,-6,36,12);ctx.restore();
+  if(!withPoints){
+   const ink=ctx.createLinearGradient(0,0,W,H);ink.addColorStop(0,'rgba(182,156,109,0)');ink.addColorStop(.32,'rgba(196,169,114,.19)');ink.addColorStop(.65,'rgba(196,169,114,.065)');ink.addColorStop(1,'rgba(182,156,109,0)');ctx.strokeStyle=ink;ctx.lineWidth=.65;
+   ctx.beginPath();for(let k=0;k<=100;k++){const p=orbitPoint(i,.2+k/100*(Math.PI*1.85-.2),clock);if(k===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y)}ctx.stroke();
+  }else{
+   const theta=clock*.000075+i*1.9,p=orbitPoint(i,theta,clock),next=orbitPoint(i,theta+.005,clock);
+   ctx.save();ctx.translate(p.x,p.y);ctx.rotate(Math.atan2(next.y-p.y,next.x-p.x));ctx.scale(p.scale,p.scale);ctx.drawImage(pointSprite,-18,-6,36,12);ctx.restore();
+  }
  }
  ctx.restore();
 }
 
-// Three equidistant strands, offset along each curve's normal like flowing water.
+// Triple strands move together through a shallow 3D current, retaining their rhythm.
 function drawRivers(ctx){
- const drift=t*.000006;
+ const drift=t*LINE_SPEED*.000006,unit=Math.max(W,H);
  ctx.save();ctx.lineWidth=.75;ctx.lineCap='round';
  for(let flow=0;flow<3;flow++){
-  const points=[];const gap=W<700?6:9;
+  const points=[],gap=W<700?6:9;
   for(let k=0;k<=100;k++){
    const u=k/100,x=-W*.18+u*W*1.36;
    const y=H*(.22+flow*.29)+Math.sin(u*Math.PI*1.65+flow*1.8+drift)*H*.16+Math.sin(u*Math.PI*3.1-flow+drift*.57)*H*.045+Math.sin(drift*.43+flow)*H*.045;
-   points.push({x,y});
+   const z=Math.sin(u*Math.PI*2+flow*1.5+drift*.72)*unit*.10+Math.sin(drift*.4+flow)*unit*.045;
+   points.push({x,y,z});
   }
-  const ink=ctx.createLinearGradient(-W*.1,0,W*1.1,H);
-  ink.addColorStop(0,'rgba(181,148,82,0)');ink.addColorStop(.22,'rgba(193,161,99,.18)');ink.addColorStop(.55,'rgba(211,184,124,.26)');ink.addColorStop(.82,'rgba(184,151,87,.12)');ink.addColorStop(1,'rgba(181,148,82,0)');ctx.strokeStyle=ink;
+  const ink=ctx.createLinearGradient(-W*.1,0,W*1.1,H);ink.addColorStop(0,'rgba(181,148,82,0)');ink.addColorStop(.22,'rgba(193,161,99,.18)');ink.addColorStop(.55,'rgba(211,184,124,.26)');ink.addColorStop(.82,'rgba(184,151,87,.12)');ink.addColorStop(1,'rgba(181,148,82,0)');ctx.strokeStyle=ink;
   for(let strand=-1;strand<=1;strand++){
-   ctx.beginPath();points.forEach((p,k)=>{const before=points[Math.max(0,k-1)],after=points[Math.min(100,k+1)],dx=after.x-before.x,dy=after.y-before.y,len=Math.hypot(dx,dy)||1;const x=p.x-dy/len*strand*gap,y=p.y+dx/len*strand*gap;if(k===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});ctx.stroke();
+   ctx.beginPath();points.forEach((p,k)=>{const before=points[Math.max(0,k-1)],after=points[Math.min(100,k+1)],dx=after.x-before.x,dy=after.y-before.y,len=Math.hypot(dx,dy)||1;
+    const projected=projectLinePoint(p.x-dy/len*strand*gap,p.y+dx/len*strand*gap,p.z,drift+flow*.4);
+    if(k===0)ctx.moveTo(projected.x,projected.y);else ctx.lineTo(projected.x,projected.y)});ctx.stroke();
   }
  }
  ctx.restore();
