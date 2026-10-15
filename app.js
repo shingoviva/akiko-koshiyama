@@ -25,36 +25,49 @@ function renderWork(){const w=works[current];document.querySelector('#view-img')
 document.querySelector('#lang').onclick=()=>{english=!english;document.documentElement.lang=english?'en':'ja';document.querySelectorAll('[data-ja]').forEach(e=>e.innerHTML=e.dataset[english?'en':'ja']);document.querySelector('#lang').innerHTML=english?'EN <span>/ JP</span>':'JP <span>/ EN</span>';document.querySelector('#lang').ariaLabel=english?'日本語に切り替え':'Switch to English';renderWork();renderCollection();updateMotionLabel()};
 function closeViewer(){dialog.close();document.body.style.overflow=''}document.querySelector('#close').onclick=closeViewer;dialog.addEventListener('close',()=>document.body.style.overflow='');dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeViewer()}});document.querySelector('#prev').onclick=()=>{stepWork(-1)};document.querySelector('#next').onclick=()=>{stepWork(1)};document.addEventListener('keydown',e=>{if(!dialog.open)return;if(e.key==='ArrowRight')document.querySelector('#next').click();if(e.key==='ArrowLeft')document.querySelector('#prev').click()});
 const observer=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}}),{threshold:.07});document.querySelectorAll('.reveal').forEach(e=>observer.observe(e));
-const canvas=document.querySelector('#cosmos'),ctx=canvas.getContext('2d');let W,H,dpr,t=0,px=0,py=0,paused=matchMedia('(prefers-reduced-motion: reduce)').matches;let pulse=null,touchLight=null;const stars=Array.from({length:200},()=>({x:(Math.random()-.5)*1600,y:(Math.random()-.5)*1600,z:(Math.random()-.5)*1600,s:Math.random()*1.5+.25}));
-function size(){dpr=Math.min(devicePixelRatio,1.6);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}size();addEventListener('resize',size);
+const canvas=document.querySelector('#cosmos'),ctx=canvas.getContext('2d');
+const coarsePointer=matchMedia('(pointer:coarse)').matches;
+let W,H,dpr,t=0,px=0,py=0,paused=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let pulse=null,touchLight=null,lastFrame=null,lineTime=-Infinity,lineDirty=true;
+const lineLayer=document.createElement('canvas'),lineCtx=lineLayer.getContext('2d');
+const glowLayer=document.createElement('canvas'),glowCtx=glowLayer.getContext('2d');
+const pointSprite=document.createElement('canvas');pointSprite.width=72;pointSprite.height=24;
+const spriteCtx=pointSprite.getContext('2d');spriteCtx.translate(36,12);spriteCtx.scale(3,1);
+const pointGlow=spriteCtx.createRadialGradient(0,0,0,0,0,12);
+pointGlow.addColorStop(0,'rgba(235,212,164,.34)');pointGlow.addColorStop(.12,'rgba(215,186,125,.17)');pointGlow.addColorStop(.45,'rgba(202,170,105,.045)');pointGlow.addColorStop(1,'rgba(202,170,105,0)');spriteCtx.fillStyle=pointGlow;spriteCtx.fillRect(-12,-12,24,24);
+const stars=Array.from({length:coarsePointer?85:140},()=>({x:(Math.random()-.5)*1600,y:(Math.random()-.5)*1600,z:(Math.random()-.5)*1600,s:Math.random()*1.5+.25}));
+function size(){
+ const nextWidth=innerWidth,nextDpr=Math.min(devicePixelRatio,coarsePointer?1.25:1.6);
+ // iOS browser chrome changes height during scroll. Keep the drawing surface stable.
+ if(coarsePointer&&W===nextWidth&&dpr===nextDpr)return;
+ W=nextWidth;H=coarsePointer?Math.max(innerHeight,screen.height):innerHeight;dpr=nextDpr;
+ for(const layer of [canvas,lineLayer,glowLayer]){layer.width=Math.round(W*dpr);layer.height=Math.round(H*dpr)}
+ canvas.style.width=W+'px';canvas.style.height=H+'px';
+ ctx.setTransform(dpr,0,0,dpr,0,0);lineCtx.setTransform(dpr,0,0,dpr,0,0);glowCtx.setTransform(dpr,0,0,dpr,0,0);
+ const glow=glowCtx.createRadialGradient(W*.7,H*.4,0,W*.7,H*.4,W*.75);glow.addColorStop(0,'rgba(94,104,75,.105)');glow.addColorStop(1,'rgba(17,20,18,0)');glowCtx.fillStyle=glow;glowCtx.fillRect(0,0,W,H);lineDirty=true;
+}
+let resizeFrame=0;addEventListener('resize',()=>{if(!resizeFrame)resizeFrame=requestAnimationFrame(()=>{resizeFrame=0;size()})},{passive:true});size();
 
 // Fine, incomplete ellipses: light moving across an imagined celestial map.
-function drawOrbits(){
+function drawOrbits(ctx,withPoints=false){
  const scale=Math.max(W,H),shift=Math.sin(t*.000004)*.07;
  ctx.save();
  for(let i=0;i<3;i++){
   const cx=W*(.46+i*.035)+px*(9+i*2),cy=H*(.48+Math.sin(i*1.7+t*.000003)*.12)+py*10;
   const rx=scale*(.31+i*.065),ry=scale*(.12+i*.027),angle=-.7+i*.31+shift;
-  const gradient=ctx.createLinearGradient(cx-rx,cy-ry,cx+rx,cy+ry);
+  if(!withPoints){const gradient=ctx.createLinearGradient(cx-rx,cy-ry,cx+rx,cy+ry);
   gradient.addColorStop(0,'rgba(182,156,109,0)');gradient.addColorStop(.32,'rgba(196,169,114,.19)');gradient.addColorStop(.65,'rgba(196,169,114,.065)');gradient.addColorStop(1,'rgba(182,156,109,0)');
-  ctx.strokeStyle=gradient;ctx.lineWidth=.65;ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,angle,.2,Math.PI*1.85);ctx.stroke();
+  ctx.strokeStyle=gradient;ctx.lineWidth=.65;ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,angle,.2,Math.PI*1.85);ctx.stroke();}
+  if(!withPoints)continue;
   const phase=t*.000075+i*1.9,x=rx*Math.cos(phase),y=ry*Math.sin(phase),lx=cx+x*Math.cos(angle)-y*Math.sin(angle),ly=cy+x*Math.sin(angle)+y*Math.cos(angle);
-  // Gaussian falloff along the orbit, with no hard start or end.
-  ctx.lineCap='round';
-  for(let j=0;j<48;j++){
-   const offset=-.34+j*.012,alpha=Math.exp(-Math.pow((offset+.045)/.115,2))*.16;
-   ctx.strokeStyle=`rgba(224,197,140,${alpha})`;ctx.lineWidth=.8;
-   ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,angle,phase+offset,phase+offset+.014);ctx.stroke();
-  }
-  const halo=ctx.createRadialGradient(lx,ly,0,lx,ly,9);
-  halo.addColorStop(0,'rgba(235,212,164,.4)');halo.addColorStop(.12,'rgba(215,186,125,.18)');halo.addColorStop(.45,'rgba(202,170,105,.055)');halo.addColorStop(1,'rgba(202,170,105,0)');
-  ctx.fillStyle=halo;ctx.fillRect(lx-9,ly-9,18,18);
+  const tangent=Math.atan2(ry*Math.cos(phase),-rx*Math.sin(phase))+angle;
+  ctx.save();ctx.translate(lx,ly);ctx.rotate(tangent);ctx.drawImage(pointSprite,-18,-6,36,12);ctx.restore();
  }
  ctx.restore();
 }
 
 // Three equidistant strands, offset along each curve's normal like flowing water.
-function drawRivers(){
+function drawRivers(ctx){
  const drift=t*.000006;
  ctx.save();ctx.lineWidth=.75;ctx.lineCap='round';
  for(let flow=0;flow<3;flow++){
@@ -80,8 +93,23 @@ function drawTouchLight(){
  const g=ctx.createRadialGradient(touchLight.x,touchLight.y,0,touchLight.x,touchLight.y,85);
  g.addColorStop(0,`rgba(229,200,139,${opacity*.6})`);g.addColorStop(.2,`rgba(199,167,106,${opacity*.15})`);g.addColorStop(1,'rgba(199,167,106,0)');ctx.fillStyle=g;ctx.fillRect(touchLight.x-85,touchLight.y-85,170,170);
 }
-function draw(){ctx.clearRect(0,0,W,H);const glow=ctx.createRadialGradient(W*.7+px*10,H*.4,0,W*.7,H*.4,W*.75);glow.addColorStop(0,'rgba(94,104,75,.105)');glow.addColorStop(1,'rgba(17,20,18,0)');ctx.fillStyle=glow;ctx.fillRect(0,0,W,H);drawRivers();drawOrbits();drawTouchLight();let a=t*.00006;for(const s of stars){const x=s.x*Math.cos(a)+s.z*Math.sin(a),z=-s.x*Math.sin(a)+s.z*Math.cos(a);const depth=800/(1800+z);const sx=W/2+x*depth+px*8,sy=H/2+s.y*depth+py*8;ctx.fillStyle=`rgba(190,163,104,${.18+depth*.5})`;ctx.beginPath();ctx.ellipse(sx,sy,s.s*depth,s.s*depth*.55,a,0,Math.PI*2);ctx.fill()}if(pulse&&!paused){let age=t-pulse.time;ctx.strokeStyle=`rgba(182,156,109,${Math.max(0,1-age/1800)*.55})`;ctx.lineWidth=.8;ctx.beginPath();ctx.ellipse(pulse.x,pulse.y,age*.15,age*.06,-.4,0,Math.PI*2);ctx.stroke();if(age>1800)pulse=null}if(!paused)t+=16;requestAnimationFrame(draw)}draw();
-const art=document.querySelector('#hero-art');addEventListener('pointermove',e=>{px=e.clientX/W-.5;py=e.clientY/H-.5;if(!paused&&e.pointerType!=='touch')art.style.transform=`perspective(1100px) rotateY(${px*9}deg) rotateX(${-py*6}deg) translate3d(${px*8}px,${py*8}px,0)`});document.querySelector('.hero').addEventListener('pointerdown',e=>{if(!paused&&!e.target.closest('a,button'))pulse={x:e.clientX,y:e.clientY,time:t}});
+function draw(now){
+ const delta=lastFrame===null?0:Math.min(now-lastFrame,50);lastFrame=now;
+ if(!paused&&!document.hidden)t+=delta;
+ if(!document.hidden){
+  if(lineDirty||(!paused&&t-lineTime>=100)){
+   lineCtx.clearRect(0,0,W,H);drawRivers(lineCtx);drawOrbits(lineCtx);lineTime=t;lineDirty=false;
+  }
+  ctx.clearRect(0,0,W,H);ctx.drawImage(glowLayer,0,0,W,H);ctx.drawImage(lineLayer,0,0,W,H);
+  drawOrbits(ctx,true);drawTouchLight();
+  const a=t*.00006,cos=Math.cos(a),sin=Math.sin(a);
+  for(const s of stars){const x=s.x*cos+s.z*sin,z=-s.x*sin+s.z*cos,depth=800/(1800+z);ctx.fillStyle='rgba(190,163,104,.34)';ctx.fillRect(W/2+x*depth+px*8,H/2+s.y*depth+py*8,Math.max(.4,s.s*depth),Math.max(.4,s.s*depth*.55))}
+  if(pulse&&!paused){const age=t-pulse.time;ctx.strokeStyle=`rgba(182,156,109,${Math.max(0,1-age/1800)*.55})`;ctx.lineWidth=.8;ctx.beginPath();ctx.ellipse(pulse.x,pulse.y,age*.15,age*.06,-.4,0,Math.PI*2);ctx.stroke();if(age>1800)pulse=null}
+ }
+ requestAnimationFrame(draw);
+}
+addEventListener('visibilitychange',()=>{lastFrame=null});requestAnimationFrame(draw);
+const art=document.querySelector('#hero-art');addEventListener('pointermove',e=>{if(e.pointerType==='touch'||paused)return;px=e.clientX/W-.5;py=e.clientY/H-.5;lineDirty=true;if(!paused&&e.pointerType!=='touch')art.style.transform=`perspective(1100px) rotateY(${px*9}deg) rotateX(${-py*6}deg) translate3d(${px*8}px,${py*8}px,0)`});document.querySelector('.hero').addEventListener('pointerdown',e=>{if(!paused&&!e.target.closest('a,button'))pulse={x:e.clientX,y:e.clientY,time:t}});
 function updateMotionLabel(){document.querySelector('#motion').innerHTML=icon(paused?'play':'pause');document.querySelector('#motion').ariaLabel=english?(paused?'Resume animation':'Pause animation'):(paused?'アニメーションを再開':'アニメーションを停止');document.querySelectorAll('.orbit').forEach(e=>e.style.animationPlayState=paused?'paused':'running')};document.querySelector('#motion').onclick=()=>{paused=!paused;updateMotionLabel();if(paused)art.style.transform='none'};updateMotionLabel();
 
 // Touch gestures preserve normal vertical page scrolling.
@@ -95,4 +123,3 @@ addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'||paused||dialog.op
 addEventListener('pointermove',e=>{if(e.pointerType!=='touch'||paused||dialog.open)return;touchLight={x:e.clientX,y:e.clientY,time:t,active:true};if(e.target.closest('.hero'))art.style.transform=`perspective(1100px) rotateY(${(e.clientX/W-.5)*9}deg) rotateX(${-(e.clientY/H-.5)*6}deg)`},{passive:true});
 function releaseTouch(){if(touchLight){touchLight.active=false;touchLight.time=t}document.querySelectorAll('.work.touched').forEach(e=>e.classList.remove('touched'));if(!paused)art.style.transform='none'}
 addEventListener('pointerup',releaseTouch,{passive:true});addEventListener('pointercancel',releaseTouch,{passive:true});
-let scrollQueued=false;addEventListener('scroll',()=>{if(scrollQueued)return;scrollQueued=true;requestAnimationFrame(()=>{if(!paused&&matchMedia('(pointer:coarse)').matches){const drift=Math.min(scrollY,innerHeight)*.035;art.style.translate=`0 ${drift}px`}scrollQueued=false})},{passive:true});
