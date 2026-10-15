@@ -28,7 +28,7 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){
 const canvas=document.querySelector('#cosmos'),ctx=canvas.getContext('2d');
 const coarsePointer=matchMedia('(pointer:coarse)').matches;
 let W,H,dpr,t=0,px=0,py=0,paused=matchMedia('(prefers-reduced-motion: reduce)').matches;
-let pulse=null,touchLight=null,lastFrame=null,lineTime=-Infinity,lineDirty=true;
+let pulse=null,touchLight=null,lastFrame=null,lineTime=-Infinity,lineDirty=true,backgroundOffset=0;
 const lineLayer=document.createElement('canvas'),lineCtx=lineLayer.getContext('2d');
 const glowLayer=document.createElement('canvas'),glowCtx=glowLayer.getContext('2d');
 const pointSprite=document.createElement('canvas');pointSprite.width=72;pointSprite.height=24;
@@ -49,7 +49,7 @@ function size(){
 let resizeFrame=0;addEventListener('resize',()=>{if(!resizeFrame)resizeFrame=requestAnimationFrame(()=>{resizeFrame=0;size()})},{passive:true});size();
 
 // Line convection runs at exactly 105% of the previous timeline.
-const LINE_SPEED=1.05;
+const LINE_SPEED=1.05*1.05;
 function projectLinePoint(x,y,z,phase){
  const yaw=Math.sin(phase*.43)*.16,pitch=Math.cos(phase*.37)*.12;
  const dx=x-W*.5,dy=y-H*.5,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
@@ -110,15 +110,16 @@ function drawTouchLight(){
 }
 function draw(now){
  const delta=lastFrame===null?0:Math.min(now-lastFrame,50);lastFrame=now;
- if(!paused&&!document.hidden)t+=delta;
+ if(!paused&&!document.hidden){t+=delta;const target=-18*Math.tanh((Number.isFinite(scrollY)?scrollY:0)/1800);backgroundOffset+=(target-backgroundOffset)*(1-Math.exp(-delta/160));}
  if(!document.hidden){
   if(lineDirty||(!paused&&t-lineTime>=100)){
    lineCtx.clearRect(0,0,W,H);drawRivers(lineCtx);drawOrbits(lineCtx);lineTime=t;lineDirty=false;
   }
-  ctx.clearRect(0,0,W,H);ctx.drawImage(glowLayer,0,0,W,H);ctx.drawImage(lineLayer,0,0,W,H);
-  drawOrbits(ctx,true);drawTouchLight();
+  ctx.clearRect(0,0,W,H);ctx.save();ctx.translate(W*.5,H*.5+backgroundOffset);ctx.scale(1.06,1.06);ctx.translate(-W*.5,-H*.5);ctx.drawImage(glowLayer,0,0,W,H);ctx.drawImage(lineLayer,0,0,W,H);
+  drawOrbits(ctx,true);
   const a=t*.00006,cos=Math.cos(a),sin=Math.sin(a);
   for(const s of stars){const x=s.x*cos+s.z*sin,z=-s.x*sin+s.z*cos,depth=800/(1800+z);ctx.fillStyle='rgba(190,163,104,.34)';ctx.fillRect(W/2+x*depth+px*8,H/2+s.y*depth+py*8,Math.max(.4,s.s*depth),Math.max(.4,s.s*depth*.55))}
+  ctx.restore();drawTouchLight();
   if(pulse&&!paused){const age=t-pulse.time;ctx.strokeStyle=`rgba(182,156,109,${Math.max(0,1-age/1800)*.55})`;ctx.lineWidth=.8;ctx.beginPath();ctx.ellipse(pulse.x,pulse.y,age*.15,age*.06,-.4,0,Math.PI*2);ctx.stroke();if(age>1800)pulse=null}
  }
  requestAnimationFrame(draw);
