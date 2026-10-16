@@ -11,3 +11,5 @@
 Limits: browser checks use desktop engine viewport emulation, not physical iPhone/Android hardware. Reduced-motion preferences intentionally reduce animation. No assertion of identical rendering on every browser or quantified performance improvement.
 
 2026-10-16 effects update: gentler interruptible in-page scroll, explicit sRGB canvas, lower baseline blur with a wider near/far blur range, brighter lit petal surfaces. About 6% of flowers release individual petals after mid-descent; per-petal transforms retain the parent rotation and are included in shadow rendering. Fragment geometry continuity and unit normals are tested. Physical iPhone color/luminance matching remains unverified.
+
+Optical-depth update: phones (<700 CSS px) cap the intact bloom projected width to 82% of viewport. Three depth compositing planes (0.65, 2.8 and 3.2px CSS blur) interpolate per-surface depth within each flower; whole-flower blur removed. Fragment spread is retained. Canvas resize tests updated for three layers.
