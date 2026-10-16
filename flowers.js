@@ -4,14 +4,14 @@ const c=document.createElement('canvas');c.id='lycoris';c.setAttribute('aria-hid
 // 5 mm; reflexed, strongly undulate tepals 30 × 5 mm. Six stamens + one style.
 // Relative mesh units preserve these ratios; posture/curvature inferred from photographs.
 for(let f=0;f<6;f++){
- const a=f*Math.PI/3+.035*Math.sin(f*8),C=[Math.cos(a)*.62,-.10+.035*Math.sin(f),Math.sin(a)*.62];
- const U=[-Math.sin(a),0,Math.cos(a)],V=[Math.cos(a)*.34,.94,Math.sin(a)*.34],A=[Math.cos(a)*.94,-.34,Math.sin(a)*.94];
+ const a=f*Math.PI/3+.11*Math.sin(f*8+.7),radius=.62+.09*Math.sin(f*2.7),elevation=.34+.17*Math.sin(f*3.1+.8),C=[Math.cos(a)*radius,-.10+.18*Math.sin(f*2.3+.4),Math.sin(a)*radius];
+ const U=[-Math.sin(a),0,Math.cos(a)],V=[Math.cos(a)*Math.sin(elevation),Math.cos(elevation),Math.sin(a)*Math.sin(elevation)],A=[Math.cos(a)*Math.cos(elevation),-Math.sin(elevation),Math.sin(a)*Math.cos(elevation)];
  const at=(x,y,z)=>C.map((v,i)=>v+U[i]*x+V[i]*y+A[i]*z);
  // Six broad-to-tip tepals arranged as two staggered whorls of three.
  for(let j=0;j<6;j++){
- const angle=(j%3)*Math.PI*2/3+(j<3?0:Math.PI/3),length=1+.035*Math.sin(f*4+j),phase=j*.8+f*.6;
- function petal(t,side){const theta=4.25*t,r=.30*(1-Math.cos(theta))*length,z=.167+.30*Math.sin(theta)*length;
- const profile=Math.pow(Math.sin(Math.PI*t),.72)*(.65+.55*t),width=.10*profile;
+ const angle=(j%3)*Math.PI*2/3+(j<3?0:Math.PI/3)+.10*Math.sin(f*5+j*2.1),length=1+.14*Math.sin(f*4+j*1.7),curl=1+.12*Math.sin(f*2+j*2.6),phase=j*.8+f*.6;
+ function petal(t,side){const theta=4.25*t*curl,r=.30*(1-Math.cos(theta))*length,z=.167+.30*Math.sin(theta)*length+.045*Math.sin(f+j*2)*t*t;
+ const profile=Math.pow(Math.sin(Math.PI*t),.72)*(.65+.55*t),width=.10*profile*(1+.12*Math.sin(f*3+j*2));
  const wave=.018*Math.sin(t*36+phase)*Math.sin(Math.PI*t)*Math.abs(side),twist=.22*Math.sin(t*5+phase)*t;
  return at(Math.cos(angle)*r-Math.sin(angle)*side*width,Math.sin(angle)*r+Math.cos(angle)*side*width,z+side*width*twist+wave-.018*(1-side*side)*Math.sin(Math.PI*t));}
  // Two cross sections give the surface a central rib and folded edges.
