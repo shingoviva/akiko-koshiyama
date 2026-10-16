@@ -15,7 +15,7 @@ for(let f=0;f<6;f++){
  const wave=.018*Math.sin(t*36+phase)*Math.sin(Math.PI*t)*Math.abs(side),twist=.22*Math.sin(t*5+phase)*t;
  return at(Math.cos(angle)*r-Math.sin(angle)*side*width,Math.sin(angle)*r+Math.cos(angle)*side*width,z+side*width*twist+wave-.018*(1-side*side)*Math.sin(Math.PI*t));}
  // Two cross sections give the surface a central rib and folded edges.
- for(let k=0;k<32;k++)for(const side of [-1,0])mesh.push({pts:[petal(k/32,side),petal(k/32,side+1),petal((k+1)/32,side+1),petal((k+1)/32,side)],tone:j*.8+k*.06});
+ for(let k=0;k<32;k++)for(const side of [-1,0])mesh.push({pts:[petal(k/32,side),petal(k/32,side+1),petal((k+1)/32,side+1),petal((k+1)/32,side)],tone:j*.8+k*.06,petalId:f*6+j,segment:k,strip:side});
  }
  // Short green perianth tube, ca. one sixth of a tepal's length.
  for(let k=0;k<8;k++){const t=k*Math.PI/4,n=(k+1)*Math.PI/4;mesh.push({pts:[at(.035*Math.cos(t),.035*Math.sin(t),0),at(.035*Math.cos(n),.035*Math.sin(n),0),at(.05*Math.cos(n),.05*Math.sin(n),.167),at(.05*Math.cos(t),.05*Math.sin(t),.167)],tone:0,green:true})}
@@ -34,6 +34,9 @@ for(let f=0;f<6;f++){
 for(const sign of [-1,1])mesh.push({pts:[[0,.04,0],[sign*.055,.09,.01],[sign*.16,.75,.05],[sign*.015,.2,-.01]],bract:true,tone:0});
 // Cache static surface normals and projected-part containers once, not every frame.
 const parts=mesh.map((m,id)=>{let normal=null;if(!m.line){const v=m.pts,e=v[1].map((n,i)=>n-v[0][i]),d=v[3].map((n,i)=>n-v[0][i]);normal=[e[1]*d[2]-e[2]*d[1],e[2]*d[0]-e[0]*d[2],e[0]*d[1]-e[1]*d[0]];const len=Math.hypot(...normal)||1;normal=normal.map(n=>n/len)}return {...m,id,normal,q:[],depth:0}});
+// Smooth neighboring surface normals along each curled tepal; preserve its central fold.
+const petalNormals=new Map();for(const m of parts)if(m.petalId!==undefined)petalNormals.set(`${m.petalId}:${m.segment}:${m.strip}`,m.normal.slice());
+for(const m of parts){if(m.petalId===undefined)continue;let sum=[0,0,0],weight=0;for(let d=-2;d<=2;d++){const n=petalNormals.get(`${m.petalId}:${m.segment+d}:${m.strip}`);if(!n)continue;const alignment=n.reduce((v,x,i)=>v+x*m.normal[i],0);if(alignment<.2)continue;const w=3-Math.abs(d);sum=sum.map((v,i)=>v+n[i]*w);weight+=w}const len=Math.hypot(...sum);if(weight&&len)m.normal=sum.map(v=>v/len)}
 const sorted=parts.slice(),coarse=matchMedia('(pointer:coarse)').matches;
 let resizeRequest=0;
 function resize(){const width=innerWidth,d=Math.min(devicePixelRatio||1,1.5);if(coarse&&w===width&&c.width===Math.round(width*d))return;w=width;h=coarse?Math.max(innerHeight,screen.height):innerHeight;c.width=Math.round(w*d);c.height=Math.round(h*d);c.style.width=w+'px';c.style.height=h+'px';g.setTransform(d,0,0,d,0,0)}resize();addEventListener('resize',()=>{if(!resizeRequest)resizeRequest=requestAnimationFrame(()=>{resizeRequest=0;resize()})},{passive:true});
@@ -57,7 +60,11 @@ function flower(f){f.lightDt=f.age-(f.lastLightAge??f.age);f.lastLightAge=f.age;
  updateShadows(f,rotate);
  g.globalAlpha=Math.min(1,u*8,(1-u)*8)*.47;c.style.filter=`blur(${4+near*5.5+f.depth*(.90+.10*approach)*5}px) saturate(1.18)`;c.style.webkitFilter=c.style.filter;g.lineCap='round';
  // Green cylindrical scape with a shaded core and a narrow reflected highlight.
- const stem=Array.from({length:30},(_,i)=>p([.52*Math.sin(i/29*2.2),i/29*4.8,.15*Math.sin(i/29*2.8)]));function path(pts){g.beginPath();pts.forEach((v,i)=>i?g.lineTo(v[0],v[1]):g.moveTo(v[0],v[1]))}path(stem);g.strokeStyle='#101c13';g.lineWidth=s*.085;g.stroke();path(stem);g.strokeStyle='#354d29';g.lineWidth=s*.045;g.stroke();path(stem);g.strokeStyle='#91a66c';g.lineWidth=s*.012;g.stroke();
+ function path(pts){g.beginPath();pts.forEach((v,i)=>i?g.lineTo(v[0],v[1]):g.moveTo(v[0],v[1]))}
+ // Shaded cylindrical scape: the highlight follows the side light, not the screen center.
+ const stemCenter=t=>[.52*Math.sin(t*2.2),t*4.8,.15*Math.sin(t*2.8)],stemFaces=[];
+ for(let k=0;k<24;k++)for(let j=0;j<10;j++){const angle=j*Math.PI/5,end=(j+1)*Math.PI/5,point=(t,a)=>{const q=stemCenter(t);return p([q[0]+.0425*Math.cos(a),q[1],q[2]+.0425*Math.sin(a)])},N=rotate([Math.cos(angle+.314),0,Math.sin(angle+.314)]),light=Math.max(0,N.reduce((v,n,i)=>v+n*L[i],0)),spec=Math.pow(Math.max(0,N[0]*(-.585)+N[1]*(-.157)+N[2]*(-.796)),25),q=[point(k/24,angle),point(k/24,end),point((k+1)/24,end),point((k+1)/24,angle)];stemFaces.push({q,z:q.reduce((v,p)=>v+p[2],0),light,spec})}
+ stemFaces.sort((a,b)=>b.z-a.z);for(const face of stemFaces){path(face.q);g.closePath();g.fillStyle=`rgb(${8+48*face.light+60*face.spec},${15+71*face.light+66*face.spec},${7+30*face.light+35*face.spec})`;g.fill();g.strokeStyle=g.fillStyle;g.lineWidth=.4;g.stroke()}
  function gloss(m){let N=rotate(m.normal);if(N[2]>0)N=N.map(v=>-v);const diffuse=Math.max(0,N[0]*L[0]+N[1]*L[1]+N[2]*L[2]),target=f.shadows[m.id],old=f.shadowSmooth?.get(m.id)??target,shadow=old+(target-old)*(1-Math.exp(-f.lightDt/.2));if(!f.shadowSmooth)f.shadowSmooth=new Map();f.shadowSmooth.set(m.id,shadow);m.diffuse=Math.pow(diffuse,1.3)*(.025+.975*shadow);m.rim=Math.pow(1-Math.abs(N[2]),3)*diffuse*shadow;return Math.pow(Math.max(0,N[0]*(-.585)+N[1]*(-.157)+N[2]*(-.796)),22)*shadow*shadow}
 
  const blooms=[];for(const m of parts){m.depth=0;for(let i=0;i<m.pts.length;i++){m.q[i]=p(m.pts[i]);m.depth+=m.q[i][2]}m.depth/=m.pts.length}sorted.sort((a,b)=>b.depth-a.depth);
