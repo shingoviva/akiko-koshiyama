@@ -153,7 +153,7 @@ addEventListener('pointermove',e=>{if(e.pointerType!=='touch'||paused||dialog.op
 function releaseTouch(){if(touchLight){touchLight.active=false;touchLight.time=t}document.querySelectorAll('.work.touched').forEach(e=>e.classList.remove('touched'));if(!paused)art.style.transform='none'}
 addEventListener('pointerup',releaseTouch,{passive:true});addEventListener('pointercancel',releaseTouch,{passive:true});
 
-const flowerScript=document.createElement("script");flowerScript.src="flowers.js?v=floating-depth-30";document.body.append(flowerScript);
+const flowerScript=document.createElement("script");flowerScript.src="flowers.js?v=early-breakup-31";document.body.append(flowerScript);
 
 // All clickable controls receive restrained visual feedback, including external links.
 document.addEventListener('click',e=>{const control=e.target.closest('button,a,summary');if(control)animateUI(control,[{opacity:.5},{opacity:1}],{duration:220})});
