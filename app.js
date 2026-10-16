@@ -147,3 +147,5 @@ addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'||paused||dialog.op
 addEventListener('pointermove',e=>{if(e.pointerType!=='touch'||paused||dialog.open)return;touchLight={x:e.clientX,y:e.clientY,time:t,active:true};if(e.target.closest('.hero'))art.style.transform=`perspective(1100px) rotateY(${(e.clientX/W-.5)*9}deg) rotateX(${-(e.clientY/H-.5)*6}deg)`},{passive:true});
 function releaseTouch(){if(touchLight){touchLight.active=false;touchLight.time=t}document.querySelectorAll('.work.touched').forEach(e=>e.classList.remove('touched'));if(!paused)art.style.transform='none'}
 addEventListener('pointerup',releaseTouch,{passive:true});addEventListener('pointercancel',releaseTouch,{passive:true});
+
+const flowerScript=document.createElement("script");flowerScript.src="flowers.js?v=trial-1";document.body.append(flowerScript);
