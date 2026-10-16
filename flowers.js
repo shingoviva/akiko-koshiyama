@@ -1,8 +1,37 @@
 (()=>{
 const c=document.createElement('canvas');c.id='lycoris';c.setAttribute('aria-hidden','true');c.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:12;filter:blur(7px) saturate(.82);-webkit-filter:blur(7px) saturate(.82);transform:translateZ(0)';document.body.append(c);const g=c.getContext('2d');let w,h,last=0,time=0,next=2,items=[],lastLane=-1;const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,mesh=[];
-for(let f=0;f<6;f++){const a=f*Math.PI/3,C=[Math.cos(a)*.5,-.1,Math.sin(a)*.5],U=[-Math.sin(a),0,Math.cos(a)],V=[Math.cos(a)*.7,.7,Math.sin(a)*.7],A=[Math.cos(a)*.7,-.7,Math.sin(a)*.7];const at=(x,y,z)=>C.map((v,i)=>v+U[i]*x+V[i]*y+A[i]*z);
-for(let j=0;j<6;j++){const b=j*Math.PI/3+.07*Math.sin(f+j);function petal(t,side){const r=.73*Math.sin(t*Math.PI*1.35),width=.045*Math.pow(Math.sin(t*Math.PI),.65)*(1+.2*Math.sin(t*30+j));return at(Math.cos(b)*r-Math.sin(b)*side*width,Math.sin(b)*r+Math.cos(b)*side*width,.75*Math.sin(t*Math.PI*.9)-.3*t*t+.018*side*Math.sin(t*28))}for(let k=0;k<24;k++)mesh.push({pts:[petal(k/24,-1),petal(k/24,1),petal((k+1)/24,1),petal((k+1)/24,-1)],tone:j*.8+k*.08})}
-for(let j=0;j<7;j++){const b=j*Math.PI*2/7,pts=[];for(let k=0;k<=20;k++){const t=k/20;pts.push(at(Math.cos(b)*t*.65,Math.sin(b)*t*.65,1.4*t-.2*t*t))}mesh.push({pts,line:true,anther:true})}mesh.push({pts:[[0,0,0],C],line:true,stem:true});}
+// Morphology: Flora of China, Lycoris radiata: 4–7 florets; green tube
+// 5 mm; reflexed, strongly undulate tepals 30 × 5 mm. Six stamens + one style.
+// Relative mesh units preserve these ratios; posture/curvature inferred from photographs.
+for(let f=0;f<6;f++){
+ const a=f*Math.PI/3+.035*Math.sin(f*8),C=[Math.cos(a)*.62,-.10+.035*Math.sin(f),Math.sin(a)*.62];
+ const U=[-Math.sin(a),0,Math.cos(a)],V=[Math.cos(a)*.34,.94,Math.sin(a)*.34],A=[Math.cos(a)*.94,-.34,Math.sin(a)*.94];
+ const at=(x,y,z)=>C.map((v,i)=>v+U[i]*x+V[i]*y+A[i]*z);
+ // Six broad-to-tip tepals arranged as two staggered whorls of three.
+ for(let j=0;j<6;j++){
+ const angle=(j%3)*Math.PI*2/3+(j<3?0:Math.PI/3),length=1+.035*Math.sin(f*4+j),phase=j*.8+f*.6;
+ function petal(t,side){const theta=4.25*t,r=.30*(1-Math.cos(theta))*length,z=.167+.30*Math.sin(theta)*length;
+ const profile=Math.pow(Math.sin(Math.PI*t),.72)*(.65+.55*t),width=.10*profile;
+ const wave=.018*Math.sin(t*36+phase)*Math.sin(Math.PI*t)*Math.abs(side),twist=.22*Math.sin(t*5+phase)*t;
+ return at(Math.cos(angle)*r-Math.sin(angle)*side*width,Math.sin(angle)*r+Math.cos(angle)*side*width,z+side*width*twist+wave-.018*(1-side*side)*Math.sin(Math.PI*t));}
+ // Two cross sections give the surface a central rib and folded edges.
+ for(let k=0;k<32;k++)for(const side of [-1,0])mesh.push({pts:[petal(k/32,side),petal(k/32,side+1),petal((k+1)/32,side+1),petal((k+1)/32,side)],tone:j*.8+k*.06});
+ }
+ // Short green perianth tube, ca. one sixth of a tepal's length.
+ for(let k=0;k<8;k++){const t=k*Math.PI/4,n=(k+1)*Math.PI/4;mesh.push({pts:[at(.035*Math.cos(t),.035*Math.sin(t),0),at(.035*Math.cos(n),.035*Math.sin(n),0),at(.05*Math.cos(n),.05*Math.sin(n),.167),at(.05*Math.cos(t),.05*Math.sin(t),.167)],tone:0,green:true})}
+ // Six stamens fan outward together before arching upwards, rather than seven radial spokes.
+ for(let j=0;j<6;j++){
+ const fan=(j-2.5)*.15,pts=[];
+ for(let k=0;k<=32;k++){const t=k/32;pts.push(at(fan*(.2*t+.75*t*t),.22*t-.62*t*t,.10+2.15*t-.16*t*t))}
+ mesh.push({pts,line:true,anther:true,antherAngle:fan});
+ }
+ const style=[];for(let k=0;k<=32;k++){const t=k/32;style.push(at(.12*t*t,.17*t-.57*t*t,.1+2.22*t-.12*t*t))}mesh.push({pts:style,line:true,pistil:true});
+ mesh.push({pts:[[0,0,0],[C[0]*.5,-.04,C[2]*.5],C],line:true,stem:true});
+ // Small inferior ovary below each tube.
+ for(let j=0;j<8;j++){const a=j*Math.PI/4,b=(j+1)*Math.PI/4;mesh.push({pts:[at(.052*Math.cos(a),.052*Math.sin(a),-.075),at(.052*Math.cos(b),.052*Math.sin(b),-.075),at(.036*Math.cos(b),.036*Math.sin(b),0),at(.036*Math.cos(a),.036*Math.sin(a),0)],green:true,tone:0})}
+}
+// Two dry, narrow involucral bracts at the branching point.
+for(const sign of [-1,1])mesh.push({pts:[[0,.04,0],[sign*.055,.09,.01],[sign*.16,.75,.05],[sign*.015,.2,-.01]],bract:true,tone:0});
 function resize(){w=innerWidth;h=innerHeight;const d=Math.min(devicePixelRatio,1.5);c.width=w*d;c.height=h*d;g.setTransform(d,0,0,d,0,0)}resize();addEventListener('resize',resize,{passive:true});
 function flower(f){f.lightDt=f.age-(f.lastLightAge??f.age);f.lastLightAge=f.age;const u=f.age/f.duration,near=Math.sin(Math.PI*u),approach=Math.exp(-Math.pow((u-f.peak)/f.spread,2)),s=f.size*(.65+near)*(1+f.depth*approach),a=f.spin+u*f.turn+.09*Math.sin(u*9+f.roll),b=.12+Math.sin(u*3)*.10+.035*Math.sin(u*11+f.spin),r=.06*Math.sin(u*5+f.roll)+.025*Math.sin(u*13+f.spin),cx=w*(f.start+(f.end-f.start)*u+f.sway*Math.sin(u*6.28+f.spin)*Math.sin(Math.PI*u)),cy=h*(-.27+1.45*(.4*u+.6*u*u)+.018*Math.sin(u*10+f.roll)*Math.sin(Math.PI*u));function p(v){let x=v[0]*Math.cos(a)+v[2]*Math.sin(a),z=-v[0]*Math.sin(a)+v[2]*Math.cos(a),y=v[1]*Math.cos(b)-z*Math.sin(b);z=v[1]*Math.sin(b)+z*Math.cos(b);const k=7/(7+z);return [cx+(x*Math.cos(r)-y*Math.sin(r))*s*k,cy+(x*Math.sin(r)+y*Math.cos(r))*s*k,z]}
  g.globalAlpha=Math.min(1,u*8,(1-u)*8)*.58;c.style.filter=`blur(${4+near*5.5+f.depth*approach*5}px) saturate(.82)`;c.style.webkitFilter=c.style.filter;g.lineCap='round';
@@ -10,7 +39,7 @@ function flower(f){f.lightDt=f.age-(f.lastLightAge??f.age);f.lastLightAge=f.age;
  const stem=Array.from({length:30},(_,i)=>p([.52*Math.sin(i/29*2.2),i/29*4.8,.15*Math.sin(i/29*2.8)]));function path(pts){g.beginPath();pts.forEach((v,i)=>i?g.lineTo(v[0],v[1]):g.moveTo(v[0],v[1]))}path(stem);g.strokeStyle='#294325';g.lineWidth=s*.085;g.stroke();path(stem);g.strokeStyle='#618344';g.lineWidth=s*.045;g.stroke();path(stem);g.strokeStyle='#8d9e55';g.lineWidth=s*.012;g.stroke();
  function gloss(m){const v=m.pts,e=v[1].map((n,i)=>n-v[0][i]),d=v[3].map((n,i)=>n-v[0][i]);let N=[e[1]*d[2]-e[2]*d[1],e[2]*d[0]-e[0]*d[2],e[0]*d[1]-e[1]*d[0]],len=Math.hypot(...N)||1;N=N.map(n=>n/len);const X=N[0]*Math.cos(a)+N[2]*Math.sin(a),Z=-N[0]*Math.sin(a)+N[2]*Math.cos(a),Y=N[1]*Math.cos(b)-Z*Math.sin(b),zz=N[1]*Math.sin(b)+Z*Math.cos(b);return Math.pow(Math.abs(X*(-.3)+Y*(-.48)+zz*(-.824)),16)}
  const blooms=[];const sorted=mesh.map((m,id)=>({...m,id,q:m.pts.map(p)})).sort((a,b)=>b.q.reduce((s,v)=>s+v[2],0)/b.q.length-a.q.reduce((s,v)=>s+v[2],0)/a.q.length);
- for(const m of sorted){path(m.q);if(m.line){g.strokeStyle=m.stem?'#6a803c':'#df5550';g.lineWidth=s*(m.stem?.035:.009);g.stroke();if(m.anther){const q=m.q.at(-1);g.fillStyle='#bc9b57';g.beginPath();g.ellipse(q[0],q[1],s*.026,s*.01,r,0,Math.PI*2);g.fill()}}else{g.closePath();const light=.5+.5*Math.sin(m.tone+a),raw=gloss(m),previous=f.highlights.get(m.id)??raw,shine=previous+(raw-previous)*(1-Math.exp(-f.lightDt/.18));f.highlights.set(m.id,shine);g.fillStyle=`rgb(${130+100*light+shine*45},${18+30*light+shine*170},${29+25*light+shine*135})`;if(m.id%12===0)blooms.push({x:m.q[0][0],y:m.q[0][1],shine});g.fill();g.strokeStyle=g.fillStyle;g.lineWidth=.4;g.stroke()}}
+ for(const m of sorted){path(m.q);if(m.line){g.strokeStyle=m.stem?'#6a803c':m.pistil?'#e88f81':'#df5550';g.lineWidth=s*(m.stem?.035:.009);g.stroke();if(m.anther){const q=m.q.at(-1);g.fillStyle='#bc9b57';g.beginPath();g.ellipse(q[0],q[1],s*.026,s*.01,r+(m.antherAngle||0),0,Math.PI*2);g.fill()}}else{g.closePath();const light=.5+.5*Math.sin(m.tone+a),raw=gloss(m),previous=f.highlights.get(m.id)??raw,shine=previous+(raw-previous)*(1-Math.exp(-f.lightDt/.18));f.highlights.set(m.id,shine);g.fillStyle=`rgb(${130+100*light+shine*45},${18+30*light+shine*170},${29+25*light+shine*135})`;if(m.id%12===0)blooms.push({x:m.q[0][0],y:m.q[0][1],shine});if(m.green)g.fillStyle='#69823f';if(m.bract)g.fillStyle='#aa9163';g.fill();g.strokeStyle=g.fillStyle;g.lineWidth=.4;g.stroke()}}
  // Broad warm specular circles bloom through the same Safari-compatible CSS blur.
  g.globalCompositeOperation='screen';for(const q of blooms){const radius=s*(.13+.18*f.depth*approach);const glow=g.createRadialGradient(q.x,q.y,0,q.x,q.y,radius);glow.addColorStop(0,`rgba(255,223,192,${q.shine*.21})`);glow.addColorStop(.35,`rgba(255,164,132,${q.shine*.10})`);glow.addColorStop(1,'rgba(255,145,110,0)');g.fillStyle=glow;g.beginPath();g.arc(q.x,q.y,radius,0,Math.PI*2);g.fill()}g.globalCompositeOperation='source-over';g.filter='none';g.globalAlpha=1;
 }
