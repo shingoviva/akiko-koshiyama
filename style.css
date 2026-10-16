@@ -33,3 +33,6 @@
 
 /* Compact visual cues; the artwork and close button retain generous hit areas. */
 @media(max-width:700px),(pointer:coarse){.work-plus{width:16px;height:16px;bottom:8px;right:8px;border-color:#eee5}.work-image .work-plus>.icon{width:8px;height:8px}#close{width:44px;height:44px;padding:0;right:4px;top:4px;background:transparent}#close .icon{width:14px;height:14px;max-width:14px;max-height:14px}}
+
+/* Dialog autofocus must not outline the full invisible touch target. */
+#close{border:0;border-radius:0;background:transparent;box-shadow:none;-webkit-tap-highlight-color:transparent}#close:focus,#close:focus-visible{outline:none;box-shadow:none}#close:focus-visible .icon{outline:1px solid var(--gold);outline-offset:4px}@media(pointer:coarse){#close:focus-visible .icon{outline:none}}
