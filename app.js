@@ -153,7 +153,7 @@ addEventListener('pointermove',e=>{if(e.pointerType!=='touch'||paused||dialog.op
 function releaseTouch(){if(touchLight){touchLight.active=false;touchLight.time=t}document.querySelectorAll('.work.touched').forEach(e=>e.classList.remove('touched'));if(!paused)art.style.transform='none'}
 addEventListener('pointerup',releaseTouch,{passive:true});addEventListener('pointercancel',releaseTouch,{passive:true});
 
-const flowerScript=document.createElement("script");flowerScript.src="flowers.js?v=natural-shading-22";document.body.append(flowerScript);
+const flowerScript=document.createElement("script");flowerScript.src="flowers.js?v=fragments-23";document.body.append(flowerScript);
 
 // All clickable controls receive restrained visual feedback, including external links.
 document.addEventListener('click',e=>{const control=e.target.closest('button,a,summary');if(control)animateUI(control,[{opacity:.5},{opacity:1}],{duration:220})});
@@ -168,3 +168,10 @@ for(const details of document.querySelectorAll('details')){
   const currentAnimation=disclosure;disclosure.finished.then(()=>{if(disclosure!==currentAnimation)return;details.open=opening;details.style.overflow='';disclosure=null},()=>{});
  });
 }
+
+// Deliberate in-page travel, interruptible by any new user scroll gesture.
+let pageTravel=null;
+function stopPageTravel(){if(!pageTravel)return;cancelAnimationFrame(pageTravel.frame);clearTimeout(pageTravel.timeout);document.documentElement.style.scrollBehavior=pageTravel.previous;pageTravel=null}
+for(const event of ['wheel','touchstart','pointerdown'])addEventListener(event,stopPageTravel,{passive:true});
+addEventListener('keydown',e=>{if(['ArrowDown','ArrowUp','PageDown','PageUp','Home','End','Escape',' '].includes(e.key))stopPageTravel()});
+document.addEventListener('click',e=>{const link=e.target.closest('a[href^="#"]');if(!link||e.defaultPrevented||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;const target=document.getElementById(link.getAttribute('href').slice(1));if(!target)return;e.preventDefault();stopPageTravel();const start=scrollY,padding=parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop)||0,end=Math.max(0,Math.min(document.documentElement.scrollHeight-innerHeight,target.getBoundingClientRect().top+start-padding));history.pushState(null,'',link.getAttribute('href'));if(uiMotion.matches){window.scrollTo({top:end,behavior:'instant'});return}const previous=document.documentElement.style.scrollBehavior;document.documentElement.style.scrollBehavior='auto';const travel={frame:0,previous,startTime:null},duration=Math.min(1650,1050+Math.abs(end-start)*.12);pageTravel=travel;function step(now){if(pageTravel!==travel)return;if(travel.startTime===null)travel.startTime=now;const t=Math.min(1,(now-travel.startTime)/duration),eased=t*t*t*(t*(t*6-15)+10);window.scrollTo(0,start+(end-start)*eased);if(t<1)travel.frame=requestAnimationFrame(step);else stopPageTravel()}travel.frame=requestAnimationFrame(step);travel.timeout=setTimeout(()=>{if(pageTravel===travel){window.scrollTo(0,end);stopPageTravel()}},duration+160)});

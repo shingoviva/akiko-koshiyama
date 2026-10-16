@@ -9,3 +9,5 @@
 - `node tests/flowers.cjs`: flower render, 120Hz scheduling, iOS-style toolbar height change, orientation and hidden-page painting pass.
 
 Limits: browser checks use desktop engine viewport emulation, not physical iPhone/Android hardware. Reduced-motion preferences intentionally reduce animation. No assertion of identical rendering on every browser or quantified performance improvement.
+
+2026-10-16 effects update: gentler interruptible in-page scroll, explicit sRGB canvas, lower baseline blur with a wider near/far blur range, brighter lit petal surfaces. About 6% of flowers release individual petals after mid-descent; per-petal transforms retain the parent rotation and are included in shadow rendering. Fragment geometry continuity and unit normals are tested. Physical iPhone color/luminance matching remains unverified.
