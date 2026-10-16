@@ -79,6 +79,13 @@ function drawOrbits(ctx,withPoints=false){
  ctx.restore();
 }
 
+// Bounded harmonic spacing preserves order while giving each current individuality.
+function riverOffset(strand,flow,u,drift,baseGap){
+ const group=1+(flow-1)*.06;
+ const breath=1+.025*Math.sin(Math.PI*u+flow*Math.PI/3+drift*.15);
+ const balance=.035*Math.cos(Math.PI*u*.5+flow*Math.PI/3+drift*.12);
+ return strand*baseGap*group*breath*(1-strand*balance);
+}
 // Triple strands move together through a shallow 3D current, retaining their rhythm.
 function drawRivers(ctx){
  const drift=t*LINE_SPEED*.000006,unit=Math.max(W,H);
@@ -94,7 +101,8 @@ function drawRivers(ctx){
   const ink=ctx.createLinearGradient(-W*.1,0,W*1.1,H);ink.addColorStop(0,'rgba(181,148,82,0)');ink.addColorStop(.22,'rgba(193,161,99,.18)');ink.addColorStop(.55,'rgba(211,184,124,.26)');ink.addColorStop(.82,'rgba(184,151,87,.12)');ink.addColorStop(1,'rgba(181,148,82,0)');ctx.strokeStyle=ink;
   for(let strand=-1;strand<=1;strand++){
    ctx.beginPath();points.forEach((p,k)=>{const before=points[Math.max(0,k-1)],after=points[Math.min(100,k+1)],dx=after.x-before.x,dy=after.y-before.y,len=Math.hypot(dx,dy)||1;
-    const projected=projectLinePoint(p.x-dy/len*strand*gap,p.y+dx/len*strand*gap,p.z,drift+flow*.4);
+    const offset=riverOffset(strand,flow,k/100,drift,gap);
+    const projected=projectLinePoint(p.x-dy/len*offset,p.y+dx/len*offset,p.z,drift+flow*.4);
     if(k===0)ctx.moveTo(projected.x,projected.y);else ctx.lineTo(projected.x,projected.y)});ctx.stroke();
   }
  }
