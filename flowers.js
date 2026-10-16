@@ -51,7 +51,7 @@ const stemFaces=[];for(let k=0;k<24;k++)for(let j=0;j<10;j++){const angle=j*Math
 const stemNormals=Array.from({length:10},(_,j)=>[Math.cos(j*Math.PI/5+.314),0,Math.sin(j*Math.PI/5+.314)]),stemWorld=new Float64Array(3),stemColors=Array(10);
 const sorted=parts.slice(),coarse=matchMedia('(pointer:coarse)').matches;
 let resizeRequest=0;
-function resize(){const width=innerWidth,d=Math.min(devicePixelRatio||1,coarse?1:1.25);if(coarse&&w===width&&c.width===Math.round(width*d))return;w=width;h=coarse?Math.max(innerHeight,screen.height):innerHeight;for(const layer of depthLayers){layer.canvas.width=Math.round(w*d);layer.canvas.height=Math.round(h*d);layer.canvas.style.width=w+'px';layer.canvas.style.height=h+'px';layer.ctx.setTransform(d,0,0,d,0,0)}}resize();addEventListener('resize',()=>{if(!resizeRequest)resizeRequest=requestAnimationFrame(()=>{resizeRequest=0;resize()})},{passive:true});
+function resize(){const width=innerWidth,d=1;if(coarse&&w===width&&c.width===Math.round(width*d))return;w=width;h=coarse?Math.max(innerHeight,screen.height):innerHeight;for(const layer of depthLayers){layer.canvas.width=Math.round(w*d);layer.canvas.height=Math.round(h*d);layer.canvas.style.width=w+'px';layer.canvas.style.height=h+'px';layer.ctx.setTransform(d,0,0,d,0,0)}}resize();addEventListener('resize',()=>{if(!resizeRequest)resizeRequest=requestAnimationFrame(()=>{resizeRequest=0;resize()})},{passive:true});
 // Orthographic light-space depth map: real surface occlusion, independent of screen blur.
 const shadowCentroid=new Float64Array(3);const shadowSize=96,shadowDepth=new Float32Array(shadowSize*shadowSize);
 const lightVector=[-.93,-.25,-.27],lightLength=Math.hypot(...lightVector),L=lightVector.map(v=>v/lightLength);
@@ -70,6 +70,7 @@ function updateShadows(f,rotate){
 // A fixed worst-orientation envelope prevents the mobile cap from resizing a rotating bloom.
 let maxBloomSpan=0;
 for(let step=0;step<24;step++)for(const pitch of [-.02,.28])for(const roll of [-.09,.09]){const yaw=step*Math.PI/12,ca=Math.cos(yaw),sa=Math.sin(yaw),cb=Math.cos(pitch),sb=Math.sin(pitch),cr=Math.cos(roll),sr=Math.sin(roll);let min=Infinity,max=-Infinity;for(const m of parts)for(const v of m.pts){const x=v[0]*ca+v[2]*sa,z=-v[0]*sa+v[2]*ca,y=v[1]*cb-z*sb,Z=v[1]*sb+z*cb,X=(x*cr-y*sr)*7/(7+Z);min=Math.min(min,X);max=Math.max(max,X)}maxBloomSpan=Math.max(maxBloomSpan,max-min)}
+function bloomBlur(base,scale){return base*scale/130}
 function limitBloomScale(desired,width){return width<700?Math.min(desired,width*1.05/maxBloomSpan):desired}
 function flower(f){f.lightDt=f.age-(f.lastLightAge??f.age);f.lastLightAge=f.age;const u=f.age/f.duration,near=Math.sin(Math.PI*u),approach=Math.exp(-Math.pow((u-f.peak)/f.spread,2)),desiredScale=f.size*1.5*(1+f.depth*.95),a=f.spin+u*f.turn*.8+.09*Math.sin(u*9+f.roll),b=.12+Math.sin(u*3)*.10+.035*Math.sin(u*11+f.spin),r=.06*Math.sin(u*5+f.roll)+.025*Math.sin(u*13+f.spin),cx=w*(f.start+(f.end-f.start)*u+f.sway*Math.sin(u*6.28+f.spin)*Math.sin(Math.PI*u)),cy=h*(-.27+1.45*(.4*u+.6*u*u)+.018*Math.sin(u*10+f.roll)*Math.sin(Math.PI*u));let s=desiredScale;
  const ca=Math.cos(a),sa=Math.sin(a),cb=Math.cos(b),sb=Math.sin(b),cr=Math.cos(r),sr=Math.sin(r),r00=cr*ca-sr*sb*sa,r01=-sr*cb,r02=cr*sa+sr*sb*ca,r10=sr*ca+cr*sb*sa,r11=cr*cb,r12=sr*sa-cr*sb*ca,r20=-cb*sa,r21=sb,r22=cb*ca;
@@ -79,7 +80,7 @@ function flower(f){f.lightDt=f.age-(f.lastLightAge??f.age);f.lastLightAge=f.age;
  s=limitBloomScale(s,w);
  const poses=f.special?fragmentPose(f,u):null;for(const m of parts){const pose=poses&&m.petalId!==undefined?poses[m.petalId]:null;if(pose?.active){for(let i=0;i<m.pts.length;i++)fragmentPoint(m.pts[i],pose,false,m.deformedPts[i]);m.drawPts=m.deformedPts}else m.drawPts=m.pts;m.drawNormal=m.normal?fragmentPoint(m.normal,pose,true,m.fragmentNormal):null}
  updateShadows(f,rotate);if(!f.shadowSmooth){f.shadowSmooth=new Float32Array(f.shadows);f.reflections=new Float32Array(parts.length)}
- for(const layer of depthLayers){const blur=layer.blur+Math.min(1.4,f.depth*.95);if(layer.lastBlur===blur)continue;layer.lastBlur=blur;layer.canvas.style.filter=`blur(${blur}px) saturate(1.18)`;layer.canvas.style.webkitFilter=layer.canvas.style.filter}
+ for(const layer of depthLayers){const blur=bloomBlur(layer.blur,s);if(layer.lastBlur===blur)continue;layer.lastBlur=blur;layer.canvas.style.filter=`blur(${blur}px) saturate(1.18)`;layer.canvas.style.webkitFilter=layer.canvas.style.filter}
  const baseAlpha=Math.min(1,u*8,(1-u)*8)*.50;
  // Focus is inside each bloom. Far and near surfaces blend into separate CSS-blurred planes.
  // CSS compositing works on Safari where CanvasRenderingContext2D.filter may not.
