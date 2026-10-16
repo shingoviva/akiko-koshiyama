@@ -148,4 +148,4 @@ addEventListener('pointermove',e=>{if(e.pointerType!=='touch'||paused||dialog.op
 function releaseTouch(){if(touchLight){touchLight.active=false;touchLight.time=t}document.querySelectorAll('.work.touched').forEach(e=>e.classList.remove('touched'));if(!paused)art.style.transform='none'}
 addEventListener('pointerup',releaseTouch,{passive:true});addEventListener('pointercancel',releaseTouch,{passive:true});
 
-const flowerScript=document.createElement("script");flowerScript.src="flowers.js?v=calm-14";document.body.append(flowerScript);
+const flowerScript=document.createElement("script");flowerScript.src="flowers.js?v=continuous-15";document.body.append(flowerScript);
