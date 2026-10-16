@@ -2,4 +2,4 @@ const vm=require('vm'),fs=require('fs'),assert=require('assert');let resizes=0,p
 
 vm.runInContext('paused=false',c);c.scrollY=3000;for(let i=0;i<90;i++)queue.shift()(1200+i*16.67);const offset=vm.runInContext('backgroundOffset',c);assert(offset<0&&offset>-18);assert(Math.abs(vm.runInContext('LINE_SPEED',c)-1.1025)<1e-9);console.log('PASS: additional 5% speed, eased scroll offset bounded to 18px');
 
-vm.runInContext(`for(let f=0;f<3;f++)for(let k=0;k<=100;k++)for(const drift of [0,1,6,20]){const a=riverOffset(-1,f,k/100,drift,6),b=riverOffset(1,f,k/100,drift,6);if(!(a<0&&b>0&&Math.abs(a)>5.3&&Math.abs(a)<6.8&&b>5.3&&b<6.8))throw Error('Spacing bounds/order');}`,c);console.log('PASS: harmonic spacing remains bounded and strands ordered');
+vm.runInContext(`for(let f=0;f<3;f++)for(let k=0;k<=100;k++)for(const drift of [0,1,6,20]){const a=riverOffset(-1,f,k/100,drift,6),b=riverOffset(1,f,k/100,drift,6);if(!(a<0&&b>0&&Math.abs(a)>4.2&&Math.abs(a)<8.2&&b>4.2&&b<8.2))throw Error('Spacing bounds/order');}`,c);console.log('PASS: harmonic spacing remains bounded and strands ordered');

@@ -81,9 +81,9 @@ function drawOrbits(ctx,withPoints=false){
 
 // Bounded harmonic spacing preserves order while giving each current individuality.
 function riverOffset(strand,flow,u,drift,baseGap){
- const group=1+(flow-1)*.06;
- const breath=1+.025*Math.sin(Math.PI*u+flow*Math.PI/3+drift*.15);
- const balance=.035*Math.cos(Math.PI*u*.5+flow*Math.PI/3+drift*.12);
+ const group=1+(flow-1)*.14;
+ const breath=1+.075*Math.sin(Math.PI*u+flow*Math.PI/3+drift*.15);
+ const balance=.10*Math.cos(Math.PI*u*.5+flow*Math.PI/3+drift*.12);
  return strand*baseGap*group*breath*(1-strand*balance);
 }
 // Triple strands move together through a shallow 3D current, retaining their rhythm.
