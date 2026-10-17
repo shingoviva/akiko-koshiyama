@@ -42,3 +42,14 @@
 
 /* Fade both the photograph and its shade as one layer, hiding rectangular edges. */
 .hero-art{-webkit-mask-image:linear-gradient(to right,transparent,rgba(0,0,0,.35) 4%,rgba(0,0,0,.85) 10%,#000 17%,#000 83%,rgba(0,0,0,.85) 90%,rgba(0,0,0,.35) 96%,transparent);mask-image:linear-gradient(to right,transparent,rgba(0,0,0,.35) 4%,rgba(0,0,0,.85) 10%,#000 17%,#000 83%,rgba(0,0,0,.85) 90%,rgba(0,0,0,.35) 96%,transparent)}
+
+/* Unified easing and continuous viewer handoffs. No persistent GPU layer promotion. */
+:root{--ease-flow:cubic-bezier(.22,1,.36,1)}
+.work-image,.work-image img,.hero-art,.reveal{transition-timing-function:var(--ease-flow)}
+.viewer-image{position:relative}#view-img{display:block;transition:transform .36s var(--ease-flow)}
+.viewer-image .viewer-previous{position:absolute;inset:0;width:100%;height:100%;max-height:none;object-fit:contain;pointer-events:none;z-index:1}
+.collection-filters button{transition:color .35s ease}.collection-filters button::after{content:"";position:absolute;bottom:2px;left:0;right:0;height:1px;background:var(--gold);transform:scaleX(0);opacity:0;transition:transform .42s var(--ease-flow),opacity .35s ease}.collection-filters button[aria-pressed=true]::after{transform:scaleX(1);opacity:1}
+nav a,.email,.instagram,footer a{transition:color .35s ease}nav a:hover,.email:hover,.instagram:hover,footer a:hover{color:var(--gold)}
+dialog[open]::backdrop{animation:viewer-backdrop-in .42s ease both}dialog.is-closing::backdrop{animation:viewer-backdrop-out .28s ease both}
+@keyframes viewer-backdrop-in{from{opacity:0}to{opacity:1}}@keyframes viewer-backdrop-out{from{opacity:1}to{opacity:0}}
+@media(prefers-reduced-motion:reduce){dialog::backdrop{animation:none!important}}

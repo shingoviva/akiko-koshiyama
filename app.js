@@ -1,8 +1,8 @@
 // Interruptible transitions: state updates immediately; motion never blocks taps.
 const uiMotion=matchMedia('(prefers-reduced-motion: reduce)');
 const uiAnimations=new WeakMap();
-function animateUI(element,frames,options={}){if(!element||uiMotion.matches||typeof element.animate!=='function')return null;uiAnimations.get(element)?.cancel();const animation=element.animate(frames,{duration:320,easing:'cubic-bezier(.22,.7,.25,1)',...options});uiAnimations.set(element,animation);return animation}
-function revealCollection(){gallery.querySelectorAll('.work').forEach((el,i)=>animateUI(el,[{opacity:.2,translate:'0 12px'},{opacity:1,translate:'0 0'}],{duration:380,delay:Math.min(i,5)*35}))}
+function animateUI(element,frames,options={}){if(!element||uiMotion.matches||typeof element.animate!=='function')return null;uiAnimations.get(element)?.cancel();const animation=element.animate(frames,{duration:420,easing:'cubic-bezier(.22,1,.36,1)',...options});uiAnimations.set(element,animation);return animation}
+function revealCollection(from=0){Array.from(gallery.querySelectorAll('.work')).slice(from).forEach((el,i)=>animateUI(el,[{opacity:0,translate:'0 10px'},{opacity:1,translate:'0 0'}],{duration:520,delay:Math.min(i,5)*38,fill:'backwards'}))}
 const icon=name=>`<img class="icon icon-${name}" src="assets/icons/${name}.svg" alt="" aria-hidden="true" width="24" height="24">`;
 const works=[
 {category:'inner',img:'p3-1.jpg',ja:'あなたは光',en:'You are light',label:'LIGHT',textJa:'内側から輝く光。暗闇を照らす光。\nあなたの内にある輝きを、自由に表現してほしい。\nその光に、救われる人がいる。',textEn:'A light shining from within. A light illuminating the dark.\nExpress the radiance you carry, freely.\nSomeone, somewhere, will find solace in your light.'},
@@ -16,19 +16,33 @@ let english=false,current=0;const gallery=document.querySelector('#gallery'),dia
 const PAGE_SIZE=6;let activeFilter='all',visibleLimit=PAGE_SIZE;
 const filteredIndices=()=>works.map((w,i)=>i).filter(i=>activeFilter==='all'||works[i].category===activeFilter);
 function renderCollection(){
- const matches=filteredIndices();gallery.replaceChildren();
- matches.slice(0,visibleLimit).forEach((i,pos)=>{const w=works[i],b=document.createElement('button');b.className='work';b.style.setProperty('--order',pos);b.innerHTML=`<div class="work-image"><img src="assets/${w.img}" loading="lazy" decoding="async" width="900" height="1200" alt="${english?w.en:w.ja}"><span class="work-plus" aria-hidden="true">${icon('plus')}</span></div><div class="work-caption"><h3>${english?w.en:w.ja}</h3><span>${String(i+1).padStart(2,'0')} / ${w.label}</span></div>`;b.addEventListener('click',()=>{current=i;renderWork();dialog.showModal();document.body.style.overflow='hidden';animateUI(dialog,[{opacity:0,translate:'0 14px',scale:'.985'},{opacity:1,translate:'0 0',scale:'1'}])});gallery.append(b)});
+ const matches=filteredIndices(),previousHeight=gallery.getBoundingClientRect().height;uiAnimations.get(gallery)?.cancel();gallery.replaceChildren();
+ matches.slice(0,visibleLimit).forEach((i,pos)=>{const w=works[i],b=document.createElement('button');b.className='work';b.style.setProperty('--order',pos);b.innerHTML=`<div class="work-image"><img src="assets/${w.img}" loading="lazy" decoding="async" width="900" height="1200" alt="${english?w.en:w.ja}"><span class="work-plus" aria-hidden="true">${icon('plus')}</span></div><div class="work-caption"><h3>${english?w.en:w.ja}</h3><span>${String(i+1).padStart(2,'0')} / ${w.label}</span></div>`;b.addEventListener('click',()=>{current=i;renderWork();dialog.classList.remove('is-closing');dialog.showModal();document.body.style.overflow='hidden';animateUI(dialog,[{opacity:0,translate:'0 14px',scale:'.985'},{opacity:1,translate:'0 0',scale:'1'}])});gallery.append(b)});
+ const nextHeight=gallery.getBoundingClientRect().height;if(previousHeight&&nextHeight!==previousHeight)animateUI(gallery,[{height:previousHeight+'px'},{height:nextHeight+'px'}],{duration:520});
  document.querySelector('#collection-count').textContent=english?`${Math.min(visibleLimit,matches.length)} of ${matches.length} works`:`${matches.length}作品中 ${Math.min(visibleLimit,matches.length)}作品`;
  document.querySelector('#more-works').hidden=visibleLimit>=matches.length;
  document.querySelectorAll('[data-filter]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.filter===activeFilter)));
 }
-document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{activeFilter=b.dataset.filter;visibleLimit=PAGE_SIZE;renderCollection();revealCollection()}));
-document.querySelector('#more-works').onclick=()=>{visibleLimit+=PAGE_SIZE;renderCollection();revealCollection()};
-function stepWork(direction){const matches=filteredIndices(),pos=matches.indexOf(current);current=matches[(pos+direction+matches.length)%matches.length];renderWork();animateUI(document.querySelector('.viewer-image'),[{opacity:.15,translate:`${direction*18}px 0`},{opacity:1,translate:'0 0'}]);animateUI(document.querySelector('.viewer-copy'),[{opacity:.25},{opacity:1}])}
+document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{if(activeFilter===b.dataset.filter)return;activeFilter=b.dataset.filter;visibleLimit=PAGE_SIZE;renderCollection();revealCollection()}));
+document.querySelector('#more-works').onclick=()=>{const previous=visibleLimit;visibleLimit+=PAGE_SIZE;renderCollection();revealCollection(previous)};
+let workRequest=0;
+async function stepWork(direction){
+ const matches=filteredIndices(),pos=matches.indexOf(current);current=matches[(pos+direction+matches.length)%matches.length];
+ const request=++workRequest,index=current,preload=new Image();preload.src='assets/'+works[index].img;
+ try{await preload.decode()}catch{}if(request!==workRequest||!dialog.open||viewerClosing)return;
+ const pane=document.querySelector('.viewer-image'),image=document.querySelector('#view-img'),ghost=image.cloneNode();
+ ghost.removeAttribute('id');ghost.alt='';ghost.setAttribute('aria-hidden','true');ghost.className='viewer-previous';
+ // Keep the old frame visible until the incoming image is decoded.
+ if(!uiMotion.matches)pane.append(ghost);renderWork();
+ animateUI(image,[{opacity:0,translate:`${direction*14}px 0`},{opacity:1,translate:'0 0'}],{duration:460});
+ const fade=animateUI(ghost,[{opacity:1,translate:'0 0'},{opacity:0,translate:`${-direction*10}px 0`}],{duration:460});
+ if(fade)fade.finished.then(()=>ghost.remove(),()=>ghost.remove());else ghost.remove();
+ animateUI(document.querySelector('.viewer-copy'),[{opacity:.45,translate:'0 4px'},{opacity:1,translate:'0 0'}],{duration:460});
+}
 renderCollection();
 function renderWork(){const w=works[current];document.querySelector('#view-img').src='assets/'+w.img;document.querySelector('#view-img').alt=english?w.en:w.ja;document.querySelector('#view-title').textContent=english?w.en:w.ja;document.querySelector('#view-text').textContent=(english?w.textEn:w.textJa)+'\n\n'+(english?'Editorial title and text adapted for this site.':'作品名・文章はサイト用に再構成しています。');document.querySelector('#view-number').textContent=w.label;document.querySelector('#view-count').textContent=`${String(filteredIndices().indexOf(current)+1).padStart(2,'0')} / ${String(filteredIndices().length).padStart(2,'0')}`}
 document.querySelector('#lang').onclick=()=>{english=!english;document.documentElement.lang=english?'en':'ja';document.querySelectorAll('[data-ja]').forEach(e=>e.innerHTML=e.dataset[english?'en':'ja']);document.querySelector('#lang').innerHTML=english?'EN <span>/ JP</span>':'JP <span>/ EN</span>';document.querySelector('#lang').ariaLabel=english?'日本語に切り替え':'Switch to English';renderWork();renderCollection();updateMotionLabel();animateUI(document.querySelector('main'),[{opacity:.55},{opacity:1}],{duration:280})};
-let viewerClosing=false;function closeViewer(){if(viewerClosing||!dialog.open)return;viewerClosing=true;const animation=animateUI(dialog,[{opacity:1,translate:'0 0'},{opacity:0,translate:'0 10px'}],{duration:180});const finish=()=>{dialog.close();document.body.style.overflow='';viewerClosing=false};if(animation)animation.finished.then(finish,finish);else finish()}dialog.addEventListener('cancel',e=>{e.preventDefault();closeViewer()});document.querySelector('#close').onclick=closeViewer;dialog.addEventListener('close',()=>document.body.style.overflow='');dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeViewer()}});document.querySelector('#prev').onclick=()=>{stepWork(-1)};document.querySelector('#next').onclick=()=>{stepWork(1)};document.addEventListener('keydown',e=>{if(!dialog.open)return;if(e.key==='ArrowRight')document.querySelector('#next').click();if(e.key==='ArrowLeft')document.querySelector('#prev').click()});
+let viewerClosing=false;function closeViewer(){if(viewerClosing||!dialog.open)return;viewerClosing=true;++workRequest;dialog.classList.add('is-closing');const animation=animateUI(dialog,[{opacity:1,translate:'0 0'},{opacity:0,translate:'0 10px'}],{duration:280});const finish=()=>{dialog.close();dialog.classList.remove('is-closing');dialog.querySelectorAll('.viewer-previous').forEach(e=>e.remove());document.body.style.overflow='';viewerClosing=false};if(animation)animation.finished.then(finish,finish);else finish()}dialog.addEventListener('cancel',e=>{e.preventDefault();closeViewer()});document.querySelector('#close').onclick=closeViewer;dialog.addEventListener('close',()=>document.body.style.overflow='');dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeViewer()}});document.querySelector('#prev').onclick=()=>{stepWork(-1)};document.querySelector('#next').onclick=()=>{stepWork(1)};document.addEventListener('keydown',e=>{if(!dialog.open)return;if(e.key==='ArrowRight')document.querySelector('#next').click();if(e.key==='ArrowLeft')document.querySelector('#prev').click()});
 const observer=typeof IntersectionObserver==='function'?new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}}),{threshold:.07}):null;document.querySelectorAll('.reveal').forEach(e=>observer?observer.observe(e):e.classList.add('visible'));
 const canvas=document.querySelector('#cosmos'),ctx=canvas.getContext('2d');
 const coarsePointer=matchMedia('(pointer:coarse)').matches;
@@ -153,10 +167,10 @@ addEventListener('pointermove',e=>{if(e.pointerType!=='touch'||paused||dialog.op
 function releaseTouch(){if(touchLight){touchLight.active=false;touchLight.time=t}document.querySelectorAll('.work.touched').forEach(e=>e.classList.remove('touched'));if(!paused)art.style.transform='none'}
 addEventListener('pointerup',releaseTouch,{passive:true});addEventListener('pointercancel',releaseTouch,{passive:true});
 
-const flowerScript=document.createElement("script");flowerScript.src="flowers.js?v=shortcuts-37";document.body.append(flowerScript);
+const flowerScript=document.createElement("script");flowerScript.src="flowers.js?v=smooth-38";document.body.append(flowerScript);
 
 // All clickable controls receive restrained visual feedback, including external links.
-document.addEventListener('click',e=>{const control=e.target.closest('button,a,summary');if(control)animateUI(control,[{opacity:.5},{opacity:1}],{duration:220})});
+document.addEventListener('click',e=>{const control=e.target.closest('button,a,summary');if(control&&!uiAnimations.get(control)?.playState?.includes('running'))animateUI(control,[{opacity:.78},{opacity:1}],{duration:320})});
 for(const details of document.querySelectorAll('details')){
  const summary=details.querySelector('summary');let disclosure=null,targetOpen=details.open;
  summary.addEventListener('click',e=>{
@@ -164,7 +178,7 @@ for(const details of document.querySelectorAll('details')){
   const start=details.getBoundingClientRect().height,opening=!targetOpen;targetOpen=opening;
   disclosure?.cancel();details.open=true;const expanded=details.getBoundingClientRect().height;
   const collapsed=summary.getBoundingClientRect().height;details.style.overflow='hidden';
-  disclosure=details.animate([{height:start+'px'},{height:(opening?expanded:collapsed)+'px'}],{duration:320,easing:'cubic-bezier(.22,.7,.25,1)'});
+  disclosure=details.animate([{height:start+'px'},{height:(opening?expanded:collapsed)+'px'}],{duration:420,easing:'cubic-bezier(.22,1,.36,1)'});
   const currentAnimation=disclosure;disclosure.finished.then(()=>{if(disclosure!==currentAnimation)return;details.open=opening;details.style.overflow='';disclosure=null},()=>{});
  });
 }
